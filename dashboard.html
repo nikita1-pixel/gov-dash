@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Political Dashboard - Kunal Tilak</title>
+    <style>
+        /* --- CORE STYLES --- */
+        :root {
+            --bg-color: #f0f2f5;
+            --panel-bg: #ffffff;
+            --text-main: #333;
+            --text-muted: #777;
+            --border-color: #e1e4e8;
+            --primary-blue: #3498db;
+            --action-blue: #2980b9;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+        }
+
+        /* --- LAYOUT HEADER --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        header h1 { margin: 0; font-size: 24px; font-weight: 600; text-transform: uppercase; }
+        
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .user-profile { font-weight: bold; color: var(--primary-blue); }
+        .logout-btn {
+            padding: 8px 15px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* --- DASHBOARD GRID --- 
+           We use a 3-column layout based on the image structure.
+        */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1fr; /* Left, Middle, Right column widths */
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* --- SHARED PANEL STYLES --- */
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 16px;
+            text-transform: uppercase;
+            color: #555;
+            letter-spacing: 0.5px;
+        }
+
+        /* --- REUSABLE COMPONENTS --- */
+        .action-button {
+            padding: 8px 12px;
+            background-color: var(--action-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        /* --- SPECIFIC MODULE STYLES (Mapping the Image) --- */
+
+        /* Left Column */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .metric-card { text-align: center; border: 1px solid #eee; padding: 10px; border-radius: 4px;}
+        .metric-value { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        .metric-label { font-size: 12px; color: var(--text-muted); }
+
+        .pending { color: #e74c3c; } /* Red for 42 */
+        .in-progress { color: #f39c12; } /* Orange for 18 */
+        .resolved { color: #2ecc71; } /* Green for 127 */
+
+        .quick-actions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 20px;}
+        .quick-actions button { font-size: 11px; padding: 6px;}
+
+        .nav-links { list-style: none; padding: 0; margin: 0; }
+        .nav-links li { 
+            padding: 12px; 
+            border-bottom: 1px solid #eee; 
+            cursor: pointer; 
+            display: flex;
+            justify-content: space-between;
+            color: #555;
+        }
+        .nav-links li:hover { background-color: #fafafa; }
+
+        /* Middle Column - Ward Dev */
+        .ward-map { background: #e0e0e0; height: 150px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #777; margin-bottom: 10px;}
+
+        /* Daily Office - Schedule Simulation */
+        .schedule-sim { border: 1px solid #eee; border-radius: 4px; padding: 10px; font-size: 12px; color: #555; text-align: center;}
+
+        /* Media */
+        .media-chart-sim { height: 100px; background: #f9f9f9; border: 1px solid #eee; margin-top: 10px; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999;}
+
+        /* Right Column */
+        .govt-dept-list button { width: 100%; text-align: left; margin-bottom: 5px; background: #f9f9f9; color: #333; border: 1px solid #ddd;}
+
+        .emergency-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px;}
+        .emerg-btn { padding: 15px; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-align: center;}
+        .bg-flood { background-color: #e74c3c; }
+        .bg-fire { background-color: #e67e22; }
+        .bg-accident { background-color: #95a5a6; }
+        .bg-riot { background-color: #34495e; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Political Dashboard for Corporator Kunal Tilak</h1>
+    <div class="header-actions">
+        <span class="user-profile">Kunal Tilak (Admin)</span>
+        <a href="login.html" class="logout-btn">Logout</a>
+    </div>
+</header>
+
+<div class="dashboard-grid">
+
+    <div class="col-left">
+        <section class="panel home-dashboard">
+            <div class="panel-header"><h2>Home Dashboard</h2></div>
+            
+            <div class="metrics-grid">
+                <div class="metric-card"><div class="metric-value pending">42</div><div class="metric-label">Pending Complaints</div></div>
+                <div class="metric-card"><div class="metric-value in-progress">18</div><div class="metric-label">In Progress Issues</div></div>
+                <div class="metric-card"><div class="metric-value resolved">127</div><div class="metric-label">Resolved</div></div>
+                <div class="metric-card"><div class="metric-value">72%</div><div class="metric-label">Funds Utilized</div></div>
+                <div class="metric-card"><div class="metric-value resolved">+8</div><div class="metric-label">Public Sentiments</div></div>
+            </div>
+
+            <div class="quick-actions">
+                <button class="action-button">Assign Task</button>
+                <button class="action-button">Call Officer</button>
+                <button class="action-button">Add Note</button>
+                <button class="action-button">Escalate</button>
+                <button class="action-button">Schedule Visit</button>
+            </div>
+
+            <ul class="nav-links">
+                <li>Citizen Grievances <span>&gt;</span></li>
+                <li>Daily Office <span>&gt;</span></li>
+                <li>Budget & Funds <span>&gt;</span></li>
+                <li>Media & Image <span>&gt;</span></li>
+                <li>Ward Development <span>&gt;</span></li>
+                <li>Govt. Coordination <span>&gt;</span></li>
+                <li>Political Outreach <span>&gt;</span></li>
+                <li>Emergency <span>&gt;</span></li>
+            </ul>
+        </section>
+    </div>
+
+    <div class="col-middle">
+        <section class="panel ward-development">
+            <div class="panel-header"><h2>Ward Development</h2></div>
+            <p>Road Projects | Drainage Works | Park Upgrades</p>
+            <div class="ward-map">Map Placeholder (AI Predictions Later)</div>
+            <small>● On Track | ● Delayed | ● Completed</small>
+        </section>
+
+        <section class="panel daily-office" style="margin-top: 20px;">
+            <div class="panel-header"><h2>Daily Office</h2></div>
+            <ul class="nav-links">
+                <li>Today's Meetings <span>&gt;</span></li>
+                <li>Visitor Log <span>&gt;</span></li>
+                <li>Tasks & Follow-ups <span>&gt;</span></li>
+            </ul>
+            <div class="schedule-sim" style="margin-top: 10px;">
+                <em>Calendar View Simulation (26, 27, 28...)</em>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-right">
+        <section class="panel govt-coord">
+            <div class="panel-header"><h2>Govt. Coordination</h2></div>
+            <div class="govt-dept-list">
+                <button class="action-button">PWD</button>
+                <button class="action-button">Water Dept.</button>
+                <button class="action-button">Electricity</button>
+                <button class="action-button">Police</button>
+            </div>
+            <button class="action-button" style="width: 100%; background-color: #7f8c8d; margin-top: 10px;">Pending Approval</button>
+        </section>
+
+        <section class="panel emergency-response" style="margin-top: 20px;">
+            <div class="panel-header"><h2>Emergency Response</h2></div>
+            <div class="emergency-actions">
+                <div class="emerg-btn bg-flood">Flood</div>
+                <div class="emerg-btn bg-fire">Fire</div>
+                <div class="emerg-btn bg-accident">Accident</div>
+                <div class="emerg-btn bg-riot">Riot</div>
+            </div>
+        </section>
+    </div>
+
+</div> <script>
+    // In Sprint 1, we manually check if the user came from the login page.
+    // In Sprint 2, the server will enforce this strictly via tokens.
+    if (document.referrer === "" || !document.referrer.includes("login.html")) {
+        // Simple client-side protection for Sprint 1
+        alert("Unauthenticated access detected. Redirecting to login.");
+        window.location.href = 'login.html';
+    }
+</script>
+
+</body>
+</html>
