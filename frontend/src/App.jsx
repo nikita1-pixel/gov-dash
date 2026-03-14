@@ -9,7 +9,6 @@ import DailyOffice from './components/DailyOffice';
 import BudgetFunds from './components/BudgetFunds';
 import GrievanceAnalytics from './components/GrievanceAnalytics';
 import CitizenFeedback from './components/CitizenFeedback';
-import { GrievanceService } from './services/api';
 
 import {
   LayoutDashboard, Users, Calendar, Wallet,
@@ -53,23 +52,6 @@ function App() {
   const markAllRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
-
-  const [emergencyMsg, setEmergencyMsg] = useState("");
-
-  const handleBroadcast = async () => {
-    if (!emergencyMsg) return alert("Please enter a message");
-
-    try {
-      await GrievanceService.broadcastAlert(emergencyMsg);
-      alert("Broadcast sent to all Ward Officers!");
-      setEmergencyMsg(""); // Clear input
-    } catch (err) {
-      console.error("Failed to broadcast:", err);
-      alert("Broadcast failed. Check server connection.");
-    }
-  };
-
-  
 
   if (view === 'home') return <Homepage onSelectPortal={(role) => { setUserRole(role); setView('login'); }} />;
   if (view === 'login') return <Login role={userRole} onSuccess={() => setView('dashboard')} onBack={() => setView('home')} />;
@@ -173,16 +155,11 @@ function App() {
           {view === 'emergency' && (
             <div style={emergencyContainer}>
               <ShieldAlert size={48} color="#ef4444" />
-              <h2 style={{ margin: '16px 0 8px 0' }}>Emergency Broadcast Mode</h2>
+              <h2 style={{ margin: '16px 0 8px 0', color: '#1e293b' }}>Emergency Broadcast Mode</h2>
+              <p style={{ color: '#64748b', marginBottom: '24px' }}>Dispatch critical alerts to all 12 Wards and 48 Officers instantly.</p>
               <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '500px' }}>
-                <input
-                  type="text"
-                  placeholder="Enter emergency message..."
-                  style={emInput}
-                  value={emergencyMsg}
-                  onChange={(e) => setEmergencyMsg(e.target.value)}
-                />
-                <button style={emBtn} onClick={handleBroadcast}>Broadcast</button>
+                <input type="text" placeholder="Enter emergency message..." style={emInput} />
+                <button style={emBtn}>Broadcast</button>
               </div>
             </div>
           )}

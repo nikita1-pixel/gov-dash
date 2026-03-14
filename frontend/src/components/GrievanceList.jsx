@@ -105,21 +105,7 @@ const GrievanceList = () => {
                 setLoading(false);
             });
     }, []);
-    useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                // This now fetches specifically for the selected ward
-                const data = await GrievanceService.getAll(ward);
-                setComplaints(data);
-            } catch (err) {
-                console.error("Load failed", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadData();
-    }, [ward]);
+    
 
     const handleStatusUpdate = async (id, newStatus) => {
         try {

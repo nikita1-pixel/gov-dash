@@ -8,10 +8,17 @@ app.use(express.json());
 app.use(cors());
 
 // 1. FIRST: Initialize the connection
-const sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: 'postgres',
-    logging: false
-});
+const sequelize = new Sequelize(
+    process.env.DB_NAME,
+    process.env.DB_USER,
+    process.env.DB_PASSWORD,
+    {
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT || 5432,
+        dialect: 'postgres',
+        logging: false
+    }
+);
 
 // 2. SECOND: Define the Model (Now 'sequelize' is defined!)
 const Grievance = sequelize.define('Grievance', {
@@ -71,9 +78,10 @@ app.put('/api/grievances/:id/resolve', async (req, res) => {
     }
 });
 // 4. FOURTH: Sync and Listen
+const PORT = process.env.PORT || 5000;
 sequelize.sync().then(() => {
     console.log("✅ Postgres Database Synced");
-    app.listen(5000, () => console.log("🚀 Server running on http://localhost:5000"));
+    app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
 });
 
 // Example Express route to get office data

@@ -1,16 +1,28 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = (req, res, next) => {
-    // Look for token in the 'Authorization' header
-    const token = req.header('Authorization')?.split(' ')[1];
+// Middleware to verify Token and Role
+const authorize = (roles = []) => {
+    return (req, res, next) => {
+        const token = req.headers.authorization?.split(' ')[1];
 
-    if (!token) return res.status(401).json({ message: "Access Denied. No token provided." });
+        if (!token) {
+            return res.status(401).json({ message: 'Access Denied: No Token Provided' });
+        }
 
-    try {
-        const verified = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = verified; // Add user info to the request object
-        next(); // Proceed to the dashboard data
-    } catch (err) {
-        res.status(400).json({ message: "Invalid Token" });
-    }
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = decoded;
+
+            // Check if user role matches the required roles for the route
+            if (roles.length && !roles.includes(req.user.role)) {
+                return res.status(403).json({ message: 'Forbidden: Insufficient Permissions' });
+            }
+
+            next();
+        } catch (error) {
+            res.status(401).json({ message: 'Invalid Token' });
+        }
+    };
 };
+
+module.exports = authorize;
