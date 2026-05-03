@@ -1,19 +1,22 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import Homepage from './components/Homepage';
-import Login from './components/Login';
+import Homepage from './components/LoginPage';
+import Login from './components/AdminLogin';
 import HomeDashboard from './components/HomeDashboard';
-import GrievanceList from './components/GrievanceList';
+import GrievancePanel from './components/GrievancePanel'; // ← swapped
 import DailyOffice from './components/DailyOffice';
 import BudgetFunds from './components/BudgetFunds';
 import GrievanceAnalytics from './components/GrievanceAnalytics';
 import CitizenFeedback from './components/CitizenFeedback';
-
+import AddUserForm from './components/AddUserForm';
+import MediaDashboard from './components/MediaDashboard';
 import {
-  LayoutDashboard, Users, Calendar, Wallet,
+  LayoutDashboard, Users, Calendar, Wallet, UserPlus,
   Megaphone, ShieldAlert, LogOut, Search, Bell, X, CheckCircle, Filter, ChevronRight
 } from 'lucide-react';
+
 
 // --- Sidebar Link Component ---
 const SidebarLink = ({ icon: Icon, label, active, onClick, color = '#94a3b8' }) => (
@@ -35,11 +38,18 @@ function App() {
   const [view, setView] = useState('home');
   const [userRole, setUserRole] = useState(null);
 
-  // --- Global Filter States ---
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const savedRole = localStorage.getItem('role');
+    if (token && savedRole) {
+      setUserRole(savedRole);
+      setView('dashboard');
+    }
+  }, []);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedWard, setSelectedWard] = useState("All Wards");
 
-  // Notification States
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([
     { id: 1, text: "Critical: Water Leakage in Ward 12", time: "2 mins ago", type: "emergency", read: false },
@@ -48,13 +58,19 @@ function App() {
   ]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const markAllRead = () => setNotifications(notifications.map(n => ({ ...n, read: true })));
 
-  const markAllRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
-  };
+  if (view === 'home') {
+    return <Homepage onLoginClick={(role) => { setUserRole(role); setView('login'); }} />;
+  }
 
-  if (view === 'home') return <Homepage onSelectPortal={(role) => { setUserRole(role); setView('login'); }} />;
-  if (view === 'login') return <Login role={userRole} onSuccess={() => setView('dashboard')} onBack={() => setView('home')} />;
+  if (view === 'login') {
+    return <Login
+      role={userRole}
+      onBack={() => { setUserRole(null); setView('home'); }}
+      onSuccess={(userData) => { setUserRole(userData.role); setView('dashboard'); }}
+    />;
+  }
 
   return (
     <div className="app-container" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
@@ -63,9 +79,9 @@ function App() {
       <aside style={sidebarStyle}>
         <div style={{ padding: '32px 24px', borderBottom: '1px solid #1e293b' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={logoIcon}>KT</div>
+            <div style={logoIcon}>A</div>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fff' }}>Kunal Tilak</h2>
+              <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fff' }}>Admin Panel</h2>
               <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '700', textTransform: 'uppercase' }}>● Command Center</span>
             </div>
           </div>
@@ -78,11 +94,18 @@ function App() {
           <SidebarLink icon={Calendar} label="Daily Office" active={view === 'office'} onClick={() => setView('office')} />
           <SidebarLink icon={Wallet} label="Budget & Funds" active={view === 'budget'} onClick={() => setView('budget')} />
           <SidebarLink icon={Users} label="Citizen Feedback" active={view === 'feedback'} onClick={() => setView('feedback')} />
+          <SidebarLink icon={Megaphone} label="Media & Image" active={view === 'media'} onClick={() => setView('media')} />
+          {userRole === 'admin' && (
+            <SidebarLink icon={UserPlus} label="Add User" active={view === 'add-user'} onClick={() => setView('add-user')} />
+          )}
         </nav>
 
         <div style={{ padding: '20px', borderTop: '1px solid #1e293b' }}>
           <SidebarLink icon={ShieldAlert} label="Emergency Mode" active={view === 'emergency'} onClick={() => setView('emergency')} />
-          <button onClick={() => setView('home')} style={logoutBtn}>
+          <button
+            onClick={() => { localStorage.removeItem('token'); setUserRole(null); setView('home'); }}
+            style={logoutBtn}
+          >
             <LogOut size={18} /> Sign Out
           </button>
         </div>
@@ -103,16 +126,6 @@ function App() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </div>
-
-            <div style={wardBadge}>
-              <Filter size={14} color="#64748b" />
-              <select value={selectedWard} onChange={(e) => setSelectedWard(e.target.value)} style={wardSelect}>
-                <option>All Wards</option>
-                <option>Ward 12</option>
-                <option>Ward 08</option>
-                <option>Ward 14</option>
-              </select>
             </div>
           </div>
 
@@ -138,7 +151,7 @@ function App() {
             </div>
 
             <div style={userProfile}>
-              <div style={userAvatar}>KT</div>
+              <div style={userAvatar}>A</div>
             </div>
           </div>
         </header>
@@ -146,11 +159,24 @@ function App() {
         {/* PAGE CONTENT */}
         <div style={{ padding: '32px' }}>
           {view === 'dashboard' && <HomeDashboard searchTerm={searchTerm} ward={selectedWard} />}
-          {view === 'grievances' && <GrievanceList searchTerm={searchTerm} ward={selectedWard} />}
+          {view === 'grievances' && <GrievancePanel searchTerm={searchTerm} ward={selectedWard} />}  {/* ← updated */}
           {view === 'analytics' && <GrievanceAnalytics />}
           {view === 'office' && <DailyOffice />}
           {view === 'budget' && <BudgetFunds />}
           {view === 'feedback' && <CitizenFeedback />}
+          {view === 'media' && <MediaDashboard />}
+
+          {view === 'add-user' && (
+            <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: 0 }}>System Administration</h2>
+                <p style={{ color: '#64748b', marginTop: '4px' }}>Create and manage access credentials for constituency staff.</p>
+              </div>
+              <div style={{ backgroundColor: '#fff', padding: '32px', borderRadius: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' }}>
+                <AddUserForm onSuccess={() => setView('dashboard')} onCancel={() => setView('dashboard')} />
+              </div>
+            </div>
+          )}
 
           {view === 'emergency' && (
             <div style={emergencyContainer}>
@@ -169,26 +195,20 @@ function App() {
   );
 }
 
-// --- CSS-IN-JS OBJECTS ---
+// --- STYLES ---
 const sidebarStyle = { width: '280px', backgroundColor: '#0f172a', height: '100vh', position: 'fixed', left: 0, top: 0, display: 'flex', flexDirection: 'column', zIndex: 1000 };
 const logoIcon = { width: '40px', height: '40px', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '800', fontSize: '18px' };
 const logoutBtn = { width: '100%', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', backgroundColor: 'transparent', border: '1px solid #1e293b', borderRadius: '10px', color: '#94a3b8', cursor: 'pointer', fontSize: '14px' };
 const headerStyle = { height: '80px', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', position: 'sticky', top: 0, zIndex: 900 };
 const searchWrapper = { display: 'flex', alignItems: 'center', gap: '12px', background: '#f1f5f9', padding: '10px 16px', borderRadius: '12px', width: '350px' };
 const topSearchInput = { background: 'transparent', border: 'none', outline: 'none', fontSize: '14px', width: '100%' };
-const wardBadge = { display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '10px' };
-const wardSelect = { border: 'none', background: 'transparent', fontWeight: '700', fontSize: '13px', outline: 'none', cursor: 'pointer' };
 const notifBadge = { position: 'absolute', top: '-4px', right: '-4px', width: '18px', height: '18px', background: '#ef4444', color: '#fff', borderRadius: '50%', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' };
 const userProfile = { display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '20px', borderLeft: '1px solid #e2e8f0' };
 const userAvatar = { width: '38px', height: '38px', borderRadius: '50%', background: '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' };
-
-// Notif Dropdown
 const notifDropdown = { position: 'absolute', top: '40px', right: '0', width: '300px', background: '#fff', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', overflow: 'hidden' };
 const notifHeader = { padding: '16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
 const readAllBtn = { border: 'none', background: 'transparent', color: '#3b82f6', fontWeight: '700', fontSize: '12px', cursor: 'pointer' };
 const notifItem = { padding: '16px', borderBottom: '1px solid #f1f5f9' };
-
-// Emergency Mode
 const emergencyContainer = { height: '60vh', background: '#fff', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '2px dashed #fca5a5' };
 const emInput = { flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' };
 const emBtn = { padding: '14px 28px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' };

@@ -1,5 +1,6 @@
-import React from 'react';
+import { useState } from 'react';
 import { BarChart3, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+
 
 const GrievanceAnalytics = () => {
     // Mock data - In the next step, we'll fetch this from GrievanceService
@@ -9,6 +10,27 @@ const GrievanceAnalytics = () => {
         { category: "Garbage", count: 32, color: "#10b981" },
         { category: "Road Repairs", count: 12, color: "#ef4444" },
     ];
+    // Add this state
+    const [showAddForm, setShowAddForm] = useState(false);
+
+    // Add this function
+    const handleAddGrievance = async (formData) => {
+        try {
+            const response = await fetch('http://localhost:5000/api/grievances', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(formData)
+            });
+            if (response.ok) {
+                const newGrievance = await response.json();
+                setComplaints([newGrievance, ...complaints]); // Update list immediately
+                setShowAddForm(false);
+            }
+        } catch (err) { console.error(err); }
+    };
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>

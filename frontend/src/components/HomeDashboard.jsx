@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import {
     AlertCircle, CheckCircle, Clock, PieChart,
     Activity, Map as MapIcon, ChevronRight,
@@ -6,8 +7,59 @@ import {
     FileText, Download, Loader2, Send
 } from 'lucide-react';
 
+// --- Map Imports ---
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix for default marker icons in React-Leaflet
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({
+    iconUrl: markerIcon,
+    shadowUrl: markerShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 const HomeDashboard = () => {
     const [isGenerating, setIsGenerating] = useState(false);
+    const [grievances, setGrievances] = useState([]); // Database state
+    const [loading, setLoading] = useState(true);
+
+    // --- FETCH LOGIC ---
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('http://localhost:5000/api/grievances', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setGrievances(data);
+                }
+            } catch (error) {
+                console.error("Error fetching dashboard data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    // --- DYNAMIC METRIC CALCULATIONS ---
+    const stats = {
+        pending: grievances.filter(g => g.status === 'Pending').length,
+        inProgress: grievances.filter(g => g.status === 'In Progress').length,
+        resolved: grievances.filter(g => g.status === 'Resolved').length,
+        total: grievances.length
+    };
 
     const handleExport = () => {
         setIsGenerating(true);
@@ -18,12 +70,20 @@ const HomeDashboard = () => {
     };
 
     const metrics = [
-        { label: 'Pending', value: '42', icon: AlertCircle, color: '#ef4444', bg: '#fee2e2' },
-        { label: 'In Progress', value: '18', icon: Clock, color: '#f59e0b', bg: '#fef3c7' },
-        { label: 'Resolved', value: '127', icon: CheckCircle, color: '#10b981', bg: '#d1fae5' },
+        { label: 'Pending', value: stats.pending, icon: AlertCircle, color: '#ef4444', bg: '#fee2e2' },
+        { label: 'In Progress', value: stats.inProgress, icon: Clock, color: '#f59e0b', bg: '#fef3c7' },
+        { label: 'Resolved', value: stats.resolved, icon: CheckCircle, color: '#10b981', bg: '#d1fae5' },
+        { label: 'Total Grievances', value: stats.total, icon: Activity, color: '#8b5cf6', bg: '#ede9fe' },
         { label: 'Funds Utilized', value: '72%', icon: PieChart, color: '#3b82f6', bg: '#dbeafe' },
-        { label: 'Sentiment', value: '+8', icon: Activity, color: '#8b5cf6', bg: '#ede9fe' },
     ];
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f8fafc' }}>
+                <Loader2 className="animate-spin" size={40} color="#3b82f6" />
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-wrapper" style={{ padding: '20px', backgroundColor: '#f8fafc' }}>
@@ -63,7 +123,7 @@ const HomeDashboard = () => {
                 gap: '20px'
             }}>
 
-                {/* 2. Ward Development & AI Insights */}
+                {/* 2. Ward Development & LIVE MAP */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -73,19 +133,49 @@ const HomeDashboard = () => {
                             </button>
                         </div>
 
+                        {/* --- INTEGRATED MAP CONTAINER --- */}
                         <div style={{
-                            height: '200px',
+                            height: '350px',
                             backgroundColor: '#f1f5f9',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '1px dashed #cbd5e1',
-                            marginBottom: '20px'
+                            borderRadius: '12px',
+                            overflow: 'hidden',
+                            border: '1px solid #e2e8f0',
+                            marginBottom: '20px',
+                            zIndex: 1
                         }}>
-                            <MapIcon size={48} color="#94a3b8" strokeWidth={1} />
-                            <p style={{ color: '#64748b', marginTop: '10px', fontSize: '14px' }}>AI Predictive Map: High Density Area Identified (Zone 4)</p>
+                            <MapContainer
+                                center={[18.5204, 73.8567]}
+                                zoom={12}
+                                scrollWheelZoom={false}
+                                style={{ height: '100%', width: '100%' }}
+                            >
+                                <TileLayer
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+
+                                {grievances.map((g) => (
+                                    <Marker
+                                        key={g.id}
+                                        position={[
+                                            g.latitude || 18.5204,
+                                            g.longitude || 73.8567
+                                        ]}
+                                    >
+                                        <Popup>
+                                            <div style={{ fontSize: '14px' }}>
+                                                {/* Changed g.title to g.subject to match your DB */}
+                                                <strong style={{ color: '#1e293b' }}>{g.subject}</strong><br />
+                                                <span style={{ color: '#64748b' }}>Status: </span>
+                                                <span style={{ color: g.status === 'Pending' ? '#ef4444' : '#10b981', fontWeight: 'bold' }}>
+                                                    {g.status}
+                                                </span><br />
+                                                <span style={{ fontSize: '12px' }}>{g.ward}</span> {/* Changed to g.ward based on your schema */}
+                                            </div>
+                                        </Popup>
+                                    </Marker>
+                                ))}
+                            </MapContainer>
                         </div>
 
                         <div style={{ display: 'grid', gap: '15px' }}>
@@ -111,7 +201,7 @@ const HomeDashboard = () => {
                         </div>
                     </div>
 
-                    {/* STEP 4: EMERGENCY BROADCAST PANEL */}
+                    {/* EMERGENCY BROADCAST PANEL */}
                     <div style={{
                         backgroundColor: '#fff',
                         borderRadius: '12px',
@@ -150,10 +240,10 @@ const HomeDashboard = () => {
                     </div>
                 </div>
 
-                {/* 3. Executive Quick Actions & Step 3: Reporting */}
+                {/* 3. Executive Quick Actions & Reporting */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-                    {/* REPORTING MODULE (STEP 3) */}
+                    {/* REPORTING MODULE */}
                     <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderTop: '4px solid #3b82f6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                             <FileText size={20} color="#3b82f6" />
@@ -190,19 +280,6 @@ const HomeDashboard = () => {
                             <ActionButton icon={PhoneCall} label="Call Nodal Officer" color="#3b82f6" />
                             <ActionButton icon={Calendar} label="Schedule Ward Visit" color="#3b82f6" />
                             <ActionButton icon={ShieldAlert} label="Escalate to Dept" color="#ef4444" />
-                        </div>
-                    </div>
-
-                    <div style={{
-                        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        color: '#fff'
-                    }}>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>System Health</h4>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#cbd5e1', fontSize: '14px' }}>
-                            <div style={{ width: '8px', height: '8px', backgroundColor: '#10b981', borderRadius: '50%' }} />
-                            PostgreSQL Live & Synced
                         </div>
                     </div>
                 </div>
