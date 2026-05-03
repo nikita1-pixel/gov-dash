@@ -17,6 +17,9 @@ import {
   Megaphone, ShieldAlert, LogOut, Search, Bell, X, CheckCircle, Filter, ChevronRight
 } from 'lucide-react';
 
+import { initializeApp } from 'firebase/app';
+import { getAnalytics } from "firebase/analytics";
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 // --- Sidebar Link Component ---
 const SidebarLink = ({ icon: Icon, label, active, onClick, color = '#94a3b8' }) => (
@@ -33,8 +36,20 @@ const SidebarLink = ({ icon: Icon, label, active, onClick, color = '#94a3b8' }) 
     {active && <ChevronRight size={14} />}
   </button>
 );
+const firebaseConfig = {
+  apiKey: "AIzaSyCU9jSFZCvl2u4P0vqAMjieM1t_29GcKKE",
+  authDomain: "gov-dash-d99ce.firebaseapp.com",
+  projectId: "gov-dash-d99ce",
+  storageBucket: "gov-dash-d99ce.firebasestorage.app",
+  messagingSenderId: "759077565354",
+  appId: "1:759077565354:web:244e8c1cdf6ae6af7f71d3",
+  measurementId: "G-TTJCHSXN4G"
+};
 
 function App() {
+  const app = initializeApp(firebaseConfig); // Use the config from step 1
+  const auth = getAuth(app);
+  const analytics = getAnalytics(app);
   const [view, setView] = useState('home');
   const [userRole, setUserRole] = useState(null);
 
