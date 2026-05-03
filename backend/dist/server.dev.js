@@ -1,216 +1,73 @@
 "use strict";
 
-require('dotenv').config();
-
 var express = require('express');
-
-var _require = require('sequelize'),
-    Sequelize = _require.Sequelize,
-    DataTypes = _require.DataTypes; // Import DataTypes here
-
 
 var cors = require('cors');
 
+var authRoutes = require('./routes/auth'); // This defines authRoutes!
+
+
 var app = express();
-app.use(express.json());
-app.use(cors()); // 1. FIRST: Initialize the connection
 
-var sequelize = new Sequelize(process.env.DATABASE_URL, {
-  dialect: 'postgres',
-  logging: false
-}); // 2. SECOND: Define the Model (Now 'sequelize' is defined!)
+var grievanceRoutes = require('./routes/Grievances');
 
-var Grievance = sequelize.define('Grievance', {
-  id: {
-    type: DataTypes.STRING,
-    primaryKey: true,
-    defaultValue: function defaultValue() {
-      return "GR-".concat(Math.floor(1000 + Math.random() * 9000));
-    }
-  },
-  title: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  location: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  category: {
-    type: DataTypes.ENUM('Roads', 'Water', 'Electricity', 'Garbage', 'Other'),
-    allowNull: false
-  },
-  priority: {
-    type: DataTypes.ENUM('High', 'Medium', 'Low'),
-    defaultValue: 'Medium'
-  },
-  status: {
-    type: DataTypes.ENUM('Pending', 'In Progress', 'Resolved'),
-    defaultValue: 'Pending'
-  }
+var socialRoutes = require('./routes/social');
+
+app.use('/api/social', socialRoutes);
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
+app.use(express.json({
+  limit: '50mb'
+}));
+app.use(express.urlencoded({
+  limit: '50mb',
+  extended: true
+})); // This tells the app: "For any URL starting with /api/auth, use the routes in auth.js"
+
+app.use('/api/auth', authRoutes); // This tells the app: "For any URL starting with /api/grievances, use the routes in grievances.js"
+
+app.use('/api/grievances', grievanceRoutes);
+var PORT = 5000;
+app.listen(PORT, function () {
+  console.log("\uD83D\uDE80 SERVER IS ALIVE ON PORT ".concat(PORT));
 });
-app.get('/api/grievances', function _callee(req, res) {
-  var data;
+process.on('unhandledRejection', function (reason, promise) {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+}); // Auto-refresh Instagram token every 7 days
+
+setInterval(function _callee() {
+  var r, data;
   return regeneratorRuntime.async(function _callee$(_context) {
     while (1) {
       switch (_context.prev = _context.next) {
         case 0:
           _context.prev = 0;
           _context.next = 3;
-          return regeneratorRuntime.awrap(Grievance.findAll({
-            order: [['createdAt', 'DESC']]
-          }));
+          return regeneratorRuntime.awrap(fetch("https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=".concat(process.env.INSTAGRAM_ACCESS_TOKEN)));
 
         case 3:
+          r = _context.sent;
+          _context.next = 6;
+          return regeneratorRuntime.awrap(r.json());
+
+        case 6:
           data = _context.sent;
-          res.json(data);
-          _context.next = 10;
+          console.log('Instagram token refreshed, expires in:', data.expires_in, 'seconds');
+          _context.next = 13;
           break;
 
-        case 7:
-          _context.prev = 7;
-          _context.t0 = _context["catch"](0);
-          res.status(500).json({
-            error: _context.t0.message
-          });
-
         case 10:
+          _context.prev = 10;
+          _context.t0 = _context["catch"](0);
+          console.error('Token refresh failed:', _context.t0);
+
+        case 13:
         case "end":
           return _context.stop();
       }
     }
-  }, null, null, [[0, 7]]);
-}); // 3. THIRD: Define your Routes
-
-app.post('/api/grievances/create', function _callee2(req, res) {
-  var _req$body, title, location, category, priority, newGrievance;
-
-  return regeneratorRuntime.async(function _callee2$(_context2) {
-    while (1) {
-      switch (_context2.prev = _context2.next) {
-        case 0:
-          _context2.prev = 0;
-          _req$body = req.body, title = _req$body.title, location = _req$body.location, category = _req$body.category, priority = _req$body.priority;
-          _context2.next = 4;
-          return regeneratorRuntime.awrap(Grievance.create({
-            title: title,
-            location: location,
-            category: category,
-            priority: priority
-          }));
-
-        case 4:
-          newGrievance = _context2.sent;
-          res.status(201).json(newGrievance);
-          _context2.next = 11;
-          break;
-
-        case 8:
-          _context2.prev = 8;
-          _context2.t0 = _context2["catch"](0);
-          res.status(400).json({
-            error: _context2.t0.message
-          });
-
-        case 11:
-        case "end":
-          return _context2.stop();
-      }
-    }
-  }, null, null, [[0, 8]]);
-});
-app.put('/api/grievances/:id/resolve', function _callee3(req, res) {
-  var id, grievance;
-  return regeneratorRuntime.async(function _callee3$(_context3) {
-    while (1) {
-      switch (_context3.prev = _context3.next) {
-        case 0:
-          _context3.prev = 0;
-          id = req.params.id;
-          _context3.next = 4;
-          return regeneratorRuntime.awrap(Grievance.findByPk(id));
-
-        case 4:
-          grievance = _context3.sent;
-
-          if (!grievance) {
-            _context3.next = 12;
-            break;
-          }
-
-          grievance.status = 'Resolved';
-          _context3.next = 9;
-          return regeneratorRuntime.awrap(grievance.save());
-
-        case 9:
-          res.json({
-            message: "Status updated to Resolved",
-            data: grievance
-          });
-          _context3.next = 13;
-          break;
-
-        case 12:
-          res.status(404).json({
-            error: "Grievance not found"
-          });
-
-        case 13:
-          _context3.next = 18;
-          break;
-
-        case 15:
-          _context3.prev = 15;
-          _context3.t0 = _context3["catch"](0);
-          res.status(500).json({
-            error: _context3.t0.message
-          });
-
-        case 18:
-        case "end":
-          return _context3.stop();
-      }
-    }
-  }, null, null, [[0, 15]]);
-}); // 4. FOURTH: Sync and Listen
-
-sequelize.sync().then(function () {
-  console.log("✅ Postgres Database Synced");
-  app.listen(5000, function () {
-    return console.log("🚀 Server running on http://localhost:5000");
-  });
-}); // Example Express route to get office data
-
-app.get('/api/office/appointments', function _callee4(req, res) {
-  return regeneratorRuntime.async(function _callee4$(_context4) {
-    while (1) {
-      switch (_context4.prev = _context4.next) {
-        case 0:
-          try {
-            // const appointments = await db.query('SELECT * FROM daily_office ORDER BY time ASC');
-            // res.json(appointments);
-            // Mock data that mimics a database response
-            res.json([{
-              id: 1,
-              title: "Budget Review with Finance",
-              time: "11:00 AM",
-              type: "Official",
-              priority: "High"
-            }, {
-              id: 2,
-              title: "Citizen Delegation - Ward 4",
-              time: "01:00 PM",
-              type: "Meeting",
-              priority: "Medium"
-            }]);
-          } catch (err) {
-            res.status(500).send("Server Error");
-          }
-
-        case 1:
-        case "end":
-          return _context4.stop();
-      }
-    }
-  });
-});
+  }, null, null, [[0, 10]]);
+}, 7 * 24 * 60 * 60 * 1000);

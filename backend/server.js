@@ -1,101 +1,43 @@
-require('dotenv').config();
 const express = require('express');
-const { Sequelize, DataTypes } = require('sequelize'); // Import DataTypes here
 const cors = require('cors');
+const authRoutes = require('./routes/auth'); // This defines authRoutes!
 
 const app = express();
-app.use(express.json());
-app.use(cors());
+const grievanceRoutes = require('./routes/Grievances');
+const socialRoutes = require('./routes/social'); 
+app.use('/api/social', socialRoutes);
+app.use(cors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// 1. FIRST: Initialize the connection
-const sequelize = new Sequelize(
-    process.env.DB_NAME,
-    process.env.DB_USER,
-    process.env.DB_PASSWORD,
-    {
-        host: process.env.DB_HOST,
-        port: process.env.DB_PORT || 5432,
-        dialect: 'postgres',
-        logging: false
-    }
-);
+// This tells the app: "For any URL starting with /api/auth, use the routes in auth.js"
+app.use('/api/auth', authRoutes);
+// This tells the app: "For any URL starting with /api/grievances, use the routes in grievances.js"
+app.use('/api/grievances', grievanceRoutes);
 
-// 2. SECOND: Define the Model (Now 'sequelize' is defined!)
-const Grievance = sequelize.define('Grievance', {
-    id: {
-        type: DataTypes.STRING,
-        primaryKey: true,
-        defaultValue: () => `GR-${Math.floor(1000 + Math.random() * 9000)}`
-    },
-    title: { type: DataTypes.STRING, allowNull: false },
-    location: { type: DataTypes.STRING, allowNull: false },
-    category: {
-        type: DataTypes.ENUM('Roads', 'Water', 'Electricity', 'Garbage', 'Other'),
-        allowNull: false
-    },
-    priority: {
-        type: DataTypes.ENUM('High', 'Medium', 'Low'),
-        defaultValue: 'Medium'
-    },
-    status: {
-        type: DataTypes.ENUM('Pending', 'In Progress', 'Resolved'),
-        defaultValue: 'Pending'
-    }
+
+const PORT = 5000;
+app.listen(PORT, () => {
+    console.log(`🚀 SERVER IS ALIVE ON PORT ${PORT}`);
 });
-app.get('/api/grievances', async (req, res) => {
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Auto-refresh Instagram token every 7 days
+setInterval(async () => {
     try {
-        const data = await Grievance.findAll({ order: [['createdAt', 'DESC']] });
-        res.json(data);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const r = await fetch(
+            `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${process.env.INSTAGRAM_ACCESS_TOKEN}`
+        );
+        const data = await r.json();
+        console.log('Instagram token refreshed, expires in:', data.expires_in, 'seconds');
+    } catch (e) {
+        console.error('Token refresh failed:', e);
     }
-});
-// 3. THIRD: Define your Routes
-app.post('/api/grievances/create', async (req, res) => {
-    try {
-        const { title, location, category, priority } = req.body;
-        const newGrievance = await Grievance.create({ title, location, category, priority });
-        res.status(201).json(newGrievance);
-    } catch (err) {
-        res.status(400).json({ error: err.message });
-    }
-});
-
-app.put('/api/grievances/:id/resolve', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const grievance = await Grievance.findByPk(id);
-
-        if (grievance) {
-            grievance.status = 'Resolved';
-            await grievance.save();
-            res.json({ message: "Status updated to Resolved", data: grievance });
-        } else {
-            res.status(404).json({ error: "Grievance not found" });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-// 4. FOURTH: Sync and Listen
-const PORT = process.env.PORT || 5000;
-sequelize.sync().then(() => {
-    console.log("✅ Postgres Database Synced");
-    app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
-});
-
-// Example Express route to get office data
-app.get('/api/office/appointments', async (req, res) => {
-    try {
-        // const appointments = await db.query('SELECT * FROM daily_office ORDER BY time ASC');
-        // res.json(appointments);
-
-        // Mock data that mimics a database response
-        res.json([
-            { id: 1, title: "Budget Review with Finance", time: "11:00 AM", type: "Official", priority: "High" },
-            { id: 2, title: "Citizen Delegation - Ward 4", time: "01:00 PM", type: "Meeting", priority: "Medium" }
-        ]);
-    } catch (err) {
-        res.status(500).send("Server Error");
-    }
-});
+}, 7 * 24 * 60 * 60 * 1000);

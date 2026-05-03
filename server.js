@@ -3,12 +3,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const helmet = require('helmet');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 
 // Security Middleware
 app.use(helmet()); 
 app.use(cors());
+app.use('/api/auth', authRoutes);
 app.use(express.json());
 
 const SECRET_KEY = "your_ultra_secure_secret_key"; // Move to .env later
@@ -34,4 +36,11 @@ app.post('/api/login', async (req, res) => {
     res.json({ token });
 });
 
-app.listen(5000, () => console.log("Server running on port 5000"));
+// At the bottom of server.js
+const PORT = process.env.PORT || 5000;
+// THIS IS THE KEY: It keeps the process running and listening for the frontend
+app.listen(PORT, () => {
+    console.log('------------------------------------');
+    console.log(`🚀 SERVER IS LIVE AT: http://localhost:${PORT}`);
+    console.log('------------------------------------');
+});
