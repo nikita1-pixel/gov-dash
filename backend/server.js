@@ -7,11 +7,12 @@ const grievanceRoutes = require('./routes/Grievances');
 const socialRoutes = require('./routes/social'); 
 app.use('/api/social', socialRoutes);
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: 'https://nikita1-pixel.github.io/gov-dash',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' }));   
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // This tells the app: "For any URL starting with /api/auth, use the routes in auth.js"
@@ -20,10 +21,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/grievances', grievanceRoutes);
 
 
-const PORT = 5000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 10000; // Render uses 10000 by default
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 SERVER IS ALIVE ON PORT ${PORT}`);
 });
+
 
 process.on('unhandledRejection', (reason, promise) => {
     console.log('Unhandled Rejection at:', promise, 'reason:', reason);

@@ -15,9 +15,10 @@ var socialRoutes = require('./routes/social');
 
 app.use('/api/social', socialRoutes);
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'https://nikita1-pixel.github.io/gov-dash',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({
   limit: '50mb'
@@ -30,8 +31,9 @@ app.use(express.urlencoded({
 app.use('/api/auth', authRoutes); // This tells the app: "For any URL starting with /api/grievances, use the routes in grievances.js"
 
 app.use('/api/grievances', grievanceRoutes);
-var PORT = 5000;
-app.listen(PORT, function () {
+var PORT = process.env.PORT || 10000; // Render uses 10000 by default
+
+app.listen(PORT, '0.0.0.0', function () {
   console.log("\uD83D\uDE80 SERVER IS ALIVE ON PORT ".concat(PORT));
 });
 process.on('unhandledRejection', function (reason, promise) {
