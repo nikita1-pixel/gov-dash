@@ -2,14 +2,16 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./db");
+const helmet = require("helmet")
 
 const app = express();
-
+app.use(helmet());
 // 1) Connect to MongoDB
 connectDB();
 
 // 2) Core middleware (must come BEFORE routes)
 app.use(cors());
+
 app.use(express.json());
 
 // 3) Routes
