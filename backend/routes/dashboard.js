@@ -1,17 +1,29 @@
-const router = require('express').Router();
-const auth = require('../middleware/auth'); // Our JWT security guard
+const router = require("express").Router();
+const { authenticateToken } = require("../middleware/auth");
+const grievanceModel = require("../models/grievance.model");
 
-// GET /api/dashboard/stats
-router.get('/stats', auth, (req, res) => {
-    // In a later sprint, these will come from MongoDB/PostgreSQL
-    const stats = {
-        pendingComplaints: 42,
-        inProgressIssues: 18,
-        resolved: 127,
-        fundsUtilized: 72,
-        publicSentiment: 8
-    };
-    res.json(stats);
+// GET /api/dashboard/stats — real counts from MongoDB
+router.get("/stats", authenticateToken, async (req, res) => {
+    try {
+        const total = await grievanceModel.countDocuments();
+        const pending = await grievanceModel.countDocuments({
+            status:
+                "Pending"
+        });
+        const inProgress = await grievanceModel.countDocuments({
+            status:
+                "In Progress"
+        });
+        const resolved = await grievanceModel.countDocuments({
+            status:
+                "Resolved"
+        });
+
+        res.status(200).json({ total, pending, inProgress, resolved });
+    } catch (err) {
+        console.error("Dashboard stats error:", err.message);
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
 module.exports = router;

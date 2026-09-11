@@ -5,47 +5,36 @@ const jwt = require('jsonwebtoken');
  * Use this for routes that just need the user to be logged in.
  */
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const authHeader = req.headers["authorization"]; 
+    const token = authHeader && authHeader.split(" ")[1]; // format: "Bearer <token>"
 
-    if (!token) return res.status(401).json({ message: "No token provided" });
+    if (!token) {
+        return res.status(401).json({
+            message: "No token, authorization denied" });
+      }
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(403).json({ message: "Invalid or expired token" });
-
-        // Attaches user data (id, role) to the request object
-        req.user = decoded;
-        next();
-    });
-}
-
+      try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = decoded; // { id, role } — comes from what we signed at  login
+            next();             // token good → let the request continue
+        } catch (err) {
+            return res.status(401).json({
+                message: "Invalid or expired token"
+            });
+        }
+    }
 /**
  * Middleware 2: Role-Based Authorization
  * Use this for routes that require specific roles (e.g., ['admin']).
  */
-const authorize = (allowedRoles = []) => {
+function authorizeRoles(...allowedRoles) {
     return (req, res, next) => {
-        try {
-            const authHeader = req.headers.authorization;
-            const token = authHeader && authHeader.split(" ")[1];
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({
+                message: "Forbidden: insufficient permissions" });
+          }
+          next();
+        };
+    }
 
-            if (!token) return res.status(401).json({ message: "No token, authorization denied" });
-
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            req.user = decoded;
-
-            // Check if user has the required role
-            if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
-                return res.status(403).json({
-                    message: `Access denied: ${req.user.role} role is not authorized.`
-                });
-            }
-
-            next();
-        } catch (err) {
-            res.status(401).json({ message: "Token is not valid" });
-        }
-    };
-};
-
-module.exports = { authenticateToken, authorize };
+module.exports = { authenticateToken, authorizeRoles };

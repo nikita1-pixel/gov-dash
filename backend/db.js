@@ -1,20 +1,13 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const mongoose = require("mongoose");
 
-const pool = new Pool({
-    user: 'postgres',           // Your pgAdmin username (usually 'postgres')
-    host: 'localhost',
-    database: 'gov_dashboard',    // The name of the database you created in pgAdmin
-    password: '1234',  // Your pgAdmin password
-    port: 5433,
-});
-pool.connect((err, client, release) => {
-    if (err) {
-        return console.error('❌ Database connection error:', err.stack);
+async function connectDB() {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log("✅ MongoDB connected");
+    } catch (err) {
+        console.error("❌ MongoDB connection failed:", err.message);
+        process.exit(1); // stop the app if the DB won't connect
     }
-    console.log('✅ Connected to PostgreSQL successfully');
-    release();
-});
-module.exports = {
-    query: (text, params) => pool.query(text, params),
-};
+}
+
+module.exports = connectDB;

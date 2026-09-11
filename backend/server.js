@@ -1,45 +1,28 @@
-const express = require('express');
-const cors = require('cors');
-const authRoutes = require('./routes/auth'); // This defines authRoutes!
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("./db");
 
 const app = express();
-const grievanceRoutes = require('./routes/Grievances');
-const socialRoutes = require('./routes/social'); 
-app.use('/api/social', socialRoutes);
-app.use(cors({
-    origin: 'https://nikita1-pixel.github.io/gov-dash',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json({ limit: '50mb' }));   
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// This tells the app: "For any URL starting with /api/auth, use the routes in auth.js"
-app.use('/api/auth', authRoutes);
-// This tells the app: "For any URL starting with /api/grievances, use the routes in grievances.js"
-app.use('/api/grievances', grievanceRoutes);
+// 1) Connect to MongoDB
+connectDB();
 
+// 2) Core middleware (must come BEFORE routes)
+app.use(cors());
+app.use(express.json());
 
-const PORT = process.env.PORT || 10000; // Render uses 10000 by default
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 SERVER IS ALIVE ON PORT ${PORT}`);
+// 3) Routes
+const authRoutes = require("./routes/auth");
+const dashboardRoutes = require("./routes/dashboard");
+app.use("/api/auth", authRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+
+const grievanceRoutes = require("./routes/Grievances");
+app.use("/api/grievances", grievanceRoutes);
+
+// 4) Start the server (THIS is what makes it listen)
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server is alive on port ${PORT}`);
 });
-
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.log('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Auto-refresh Instagram token every 7 days
-setInterval(async () => {
-    try {
-        const r = await fetch(
-            `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${process.env.INSTAGRAM_ACCESS_TOKEN}`
-        );
-        const data = await r.json();
-        console.log('Instagram token refreshed, expires in:', data.expires_in, 'seconds');
-    } catch (e) {
-        console.error('Token refresh failed:', e);
-    }
-}, 7 * 24 * 60 * 60 * 1000);

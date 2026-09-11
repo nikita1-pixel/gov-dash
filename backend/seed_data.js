@@ -1,39 +1,62 @@
-const pool = require('./db'); // Ensure this points to your db configuration file
+require("dotenv").config();
+const mongoose = require("mongoose");
+const connectDB = require("./db");
+const grievanceModel = require("./models/grievance.model");
 
-const seedGrievances = async () => {
-    const grievances = [
-        { subject: 'Pothole on Main Road', category: 'Roads', description: 'Large pothole causing traffic near the junction.', status: 'Pending', ward: 'Karve Nagar', lat: 18.4912, lng: 73.8215 },
-        { subject: 'Street Light Not Working', category: 'Electricity', description: 'Street lights out for 3 days.', status: 'In Progress', ward: 'Kothrud', lat: 18.5074, lng: 73.8077 },
-        { subject: 'Water Leakage', category: 'Water Supply', description: 'Main pipe burst near the school.', status: 'Pending', ward: 'Shivajinagar', lat: 18.5308, lng: 73.8475 },
-        { subject: 'Garbage Overflow', category: 'Sanitation', description: 'Public bin not cleared since Monday.', status: 'Resolved', ward: 'Erandwane', lat: 18.5121, lng: 73.8322 },
-        { subject: 'Broken Footpath', category: 'Roads', description: 'Tiles are loose and dangerous for seniors.', status: 'Pending', ward: 'Aundh', lat: 18.5580, lng: 73.8075 },
-        { subject: 'Drainage Blockage', category: 'Sewage', description: 'Sewage backup in residential area.', status: 'In Progress', ward: 'Hadapsar', lat: 18.5089, lng: 73.9259 },
-        { subject: 'Illegal Parking', category: 'Traffic', description: 'Trucks parked in no-parking zone.', status: 'Pending', ward: 'Viman Nagar', lat: 18.5679, lng: 73.9143 },
-        { subject: 'Park Maintenance', category: 'Gardens', description: 'Benches broken in the local park.', status: 'Resolved', ward: 'Baner', lat: 18.5590, lng: 73.7797 },
-        { subject: 'Low Water Pressure', category: 'Water Supply', description: 'Residents reporting very low pressure.', status: 'In Progress', ward: 'Warje', lat: 18.4795, lng: 73.8021 },
-        { subject: 'Open Manhole', category: 'Sewage', description: 'Hazardous open manhole on side street.', status: 'Pending', ward: 'Kondhwa', lat: 18.4771, lng: 73.8907 }
-    ];
+const grievances = [
+    {
+        title: "Pothole on Main Road", category: "Roads", description:
+            "Large pothole causing traffic near the junction.", status: "Pending",
+        ward: "Karve Nagar", latitude: 18.4912, longitude: 73.8215
+    },
+    {
+        title: "Street Light Not Working", category: "Electricity",
+        description: "Street lights out for 3 days.", status: "In Progress", ward:
+            "Kothrud", latitude: 18.5074, longitude: 73.8077
+    },
+    {
+        title: "Water Leakage", category: "Water Supply", description: "Main pipe burst near the school.", status: "Pending", ward: "Shivajinagar", latitude: 18.5308, longitude: 73.8475
+    },
+    {
+        title: "Garbage Overflow", category: "Sanitation", description:
+            "Public bin not cleared since Monday.", status: "Resolved", ward:
+            "Erandwane", latitude: 18.5121, longitude: 73.8322
+    },
+    {
+        title: "Broken Footpath", category: "Roads", description: "Tiles are loose and dangerous for seniors.", status: "Pending", ward: "Aundh", latitude: 18.5580, longitude: 73.8075
+    },
+    {
+        title: "Drainage Blockage", category: "Sewage", description: "Sewage backup in residential area.", status: "In Progress", ward: "Hadapsar", latitude: 18.5089, longitude: 73.9259
+    },
+    {
+        title: "Illegal Parking", category: "Traffic", description: "Trucks parked in no- parking zone.", status: "Pending", ward: "Viman Nagar", latitude: 18.5679, longitude: 73.9143 },
+{
+    title: "Park Maintenance", category: "Gardens", description:
+    "Benches broken in the local park.", status: "Resolved", ward: "Baner",
+        latitude: 18.5590, longitude: 73.7797
+},
+{
+    title: "Low Water Pressure", category: "Water Supply", description:
+    "Residents reporting very low pressure.", status: "In Progress", ward:
+    "Warje", latitude: 18.4795, longitude: 73.8021
+},
+{
+    title: "Open Manhole", category: "Sewage", description: "Hazardous open manhole on side street.", status: "Pending", ward: "Kondhwa", latitude: 18.4771, longitude: 73.8907
+},
+  ];
 
+async function seed() {
     try {
-        console.log("🌱 Seeding database with map-ready grievances...");
-
-        // Clear old test data if you want a clean start
-        // await pool.query('DELETE FROM grievances');
-
-        for (const g of grievances) {
-            await pool.query(
-                `INSERT INTO grievances (subject, category, description, status, ward, latitude, longitude, created_at) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-                [g.subject, g.category, g.description, g.status, g.ward, g.lat, g.lng]
-            );
-        }
-
-        console.log("✅ Successfully seeded 10 grievances with coordinates!");
-        process.exit();
+        await connectDB();
+        await grievanceModel.deleteMany({});          // wipe old data for aclean slate
+        const inserted = await grievanceModel.insertMany(grievances);
+        console.log(`🌱 Seeded ${inserted.length} grievances`);
     } catch (err) {
         console.error("❌ Seeding failed:", err.message);
-        process.exit(1);
+    } finally {
+        await mongoose.disconnect();                   // close so the script exits
+        console.log("Connection closed");
     }
-};
+}
 
-seedGrievances();
+seed();
