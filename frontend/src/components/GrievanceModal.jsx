@@ -1,4 +1,9 @@
+import React from 'react';
+import { X } from 'lucide-react';
+
+// eslint-disable-next-line react-refresh/only-export-components
 const GrievanceModal = ({ issue, onClose, onSave }) => {
+    // eslint-disable-next-line no-undef
     const [formData, setFormData] = React.useState({
         title: '',
         location: '',

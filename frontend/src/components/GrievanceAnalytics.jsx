@@ -1,37 +1,43 @@
-import { useState } from 'react';
-import { BarChart3, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
-
+import { useState, useEffect } from 'react';
+import api from '../api';
+import { BarChart3, TrendingUp, AlertTriangle } from 'lucide-react';
 
 const GrievanceAnalytics = () => {
-    // Mock data - In the next step, we'll fetch this from GrievanceService
-    const analyticsData = [
-        { category: "Water Supply", count: 45, color: "#3b82f6" },
-        { category: "Street Lights", count: 28, color: "#f59e0b" },
-        { category: "Garbage", count: 32, color: "#10b981" },
-        { category: "Road Repairs", count: 12, color: "#ef4444" },
-    ];
-    // Add this state
-    const [showAddForm, setShowAddForm] = useState(false);
+    const [grievances, setGrievances] = useState([]);
 
-    // Add this function
-    const handleAddGrievance = async (formData) => {
-        try {
-            const response = await fetch('http://localhost:5000/api/grievances', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(formData)
-            });
-            if (response.ok) {
-                const newGrievance = await response.json();
-                setComplaints([newGrievance, ...complaints]); // Update list immediately
-                setShowAddForm(false);
-            }
-        } catch (err) { console.error(err); }
-    };
+    useEffect(() => {
+        api.get('/api/grievances')
+            .then(res => setGrievances(res.data.grievances))
+            .catch(err => console.error(err));
+    }, []);
 
+    // --- Category breakdown ---
+    const CATEGORY_COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444',
+        '#8b5cf6', '#ec4899'];
+    const categoryCounts = {};
+    grievances.forEach(g => {
+        const c = g.category || 'Uncategorized';
+        categoryCounts[c] = (categoryCounts[c] || 0) + 1;
+    });
+    const analyticsData = Object.entries(categoryCounts).map(([category,
+        count], i) => ({
+            category, count, color: CATEGORY_COLORS[i %
+                CATEGORY_COLORS.length],
+        }));
+    const maxCount = Math.max(1, ...analyticsData.map(d => d.count));
+
+    // --- Ward efficiency ---
+    const wardStats = {};
+    grievances.forEach(g => {
+        const w = g.ward || 'Unknown';
+        if (!wardStats[w]) wardStats[w] = { total: 0, resolved: 0 };
+        wardStats[w].total++;
+        if (g.status === 'Resolved') wardStats[w].resolved++;
+    });
+    const wardRows = Object.entries(wardStats).map(([ward, s]) => ({
+        ward,
+        efficiency: Math.round((s.resolved / s.total) * 100),
+    }));
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
 
@@ -41,7 +47,7 @@ const GrievanceAnalytics = () => {
                     <BarChart3 size={20} color="#3b82f6" />
                     <h3 style={cardTitle}>Issues by Category</h3>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px'}}>
                     {analyticsData.map((item) => (
                         <div key={item.category}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -49,7 +55,7 @@ const GrievanceAnalytics = () => {
                                 <span style={catCount}>{item.count} reports</span>
                             </div>
                             <div style={barBg}>
-                                <div style={{ ...barFill, width: `${(item.count / 50) * 100}%`, backgroundColor: item.color }} />
+                                <div style={{...barFill, width: `${(item.count / maxCount) * 100}%`, backgroundColor: item.color}} />
                             </div>
                         </div>
                     ))}
@@ -71,16 +77,18 @@ const GrievanceAnalytics = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td style={td}>Ward 12</td>
-                            <td style={td}>85%</td>
-                            <td style={td}><span style={healthBadge('#dcfce7', '#166534')}>High</span></td>
-                        </tr>
-                        <tr>
-                            <td style={td}>Ward 08</td>
-                            <td style={td}>42%</td>
-                            <td style={td}><span style={healthBadge('#fee2e2', '#991b1b')}>Critical</span></td>
-                        </tr>
+                        {wardRows.map(w => (
+                            <tr key={w.ward}>
+                                <td style={td}>{w.ward}</td>
+                                <td style={td}>{w.efficiency}%</td>
+                                <td style={td}>
+                                    <span style={w.efficiency >= 60 ? healthBadge('#dcfce7',
+                                        '#166534') : healthBadge('#fee2e2', '#991b1b')}>
+                                        {w.efficiency >= 60 ? 'High' : 'Critical'}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
                 <div style={alertBox}>

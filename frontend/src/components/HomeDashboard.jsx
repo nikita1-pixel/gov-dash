@@ -1,4 +1,6 @@
 /* eslint-disable no-unused-vars */
+import api from '../api';
+import { BarChart3, TrendingUp, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect } from 'react'; // Added useEffect
 import {
     AlertCircle, CheckCircle, Clock, PieChart,
@@ -32,26 +34,17 @@ const HomeDashboard = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:5000/api/grievances', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setGrievances(data);
-                }
+                const response = await api.get('/api/grievances');
+                setGrievances(response.data.grievances);   // ← the ARRAY from{ count, grievances }
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchDashboardData();
     }, []);
+    
 
     // --- DYNAMIC METRIC CALCULATIONS ---
     const stats = {

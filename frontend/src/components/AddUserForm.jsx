@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+import api from '../api';
 import React, { useState, useMemo } from 'react';
 import { Loader2, User, Lock, ShieldCheck, Mail, MapPin, Check, X } from 'lucide-react';
 
@@ -55,24 +56,11 @@ const AddUserForm = ({ onSuccess, onCancel }) => {
 
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:5000/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(formData),
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                alert('User created successfully!');
-                if (onSuccess) onSuccess();
-            } else {
-                setError(data.message || 'Failed to create user');
-            }
+            await api.post('/api/auth/create-user', formData);
+            alert('User created successfully!');
+            if (onSuccess) onSuccess();
         } catch (err) {
-            setError("Could not connect to the server.");
+            setError(err.response?.data?.message || "Could not create user");
         } finally {
             setLoading(false);
         }

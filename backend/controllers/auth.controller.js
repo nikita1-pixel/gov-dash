@@ -83,4 +83,40 @@ async function registerUser(req, res) {
             }
         }
 
-module.exports = { registerUser, loginUser };
+// ADMIN-ONLY: create a user with any role (staff/admin). Protected by middleware.
+async function createUser(req, res) {
+    try {
+        const { name, email, password, role, ward } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                message: "Name, email and password are required" }); }
+
+          const existingUser = await userModel.findOne({ email });
+            if (existingUser) {
+                return res.status(409).json({
+                    message: "Email already in use"
+                });
+            }
+
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            // role IS allowed here (unlike public register) — but only because
+            // this route is locked to admins by middleware
+            const user = await userModel.create({
+                name, email, password:
+                    hashedPassword, role, ward
+            });
+
+            return res.status(201).json({ message: "User created", user });
+        } catch (err) {
+            if (err.code === 11000) return res.status(409).json({
+                message:
+                    "Email already in use"
+            });
+            console.error("Create user error:", err.message);
+            return res.status(500).json({ message: "Server error" });
+        }
+    }
+
+module.exports = { registerUser, loginUser, createUser };

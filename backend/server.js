@@ -21,8 +21,13 @@ app.use("/api/dashboard", dashboardRoutes);
 const grievanceRoutes = require("./routes/Grievances");
 app.use("/api/grievances", grievanceRoutes);
 
+
+const projectRoutes = require("./routes/project");
+app.use("/api/projects", projectRoutes);  
+
 // 4) Start the server (THIS is what makes it listen)
 const PORT = process.env.PORT || 10000;
+app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
 app.listen(PORT, () => {
     console.log(`🚀 Server is alive on port ${PORT}`);
 });

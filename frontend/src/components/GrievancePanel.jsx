@@ -1,10 +1,12 @@
 /* eslint-disable no-unused-vars */
+
+import api from '../api';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     MapPin, Clock, CheckCircle2, Search, ArrowUpRight,
     X, ChevronRight, AlertCircle, Loader2, Plus
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -42,6 +44,15 @@ const RecenterMap = ({ coords }) => {
     return null;
 };
 
+const LocationPicker = ({ position, onPick }) => {
+    useMapEvents({
+        click(e) {
+            onPick(e.latlng.lat, e.latlng.lng); // leaflet gives us the clicked coords
+        },
+    });
+    return position ? <Marker position={position} /> : null;
+};
+
 // ─── MOCK DATA (fallback) ────────────────────────────────────────────────────
 const MOCK_ISSUES = [
     { id: 1, title: 'Main Road Pothole', location: 'Ward 12, Sector 4', status: 'Pending', priority: 'High', latitude: 18.5195, longitude: 73.8551, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
@@ -62,6 +73,12 @@ function timeAgo(iso) {
 
 // ─── Grievance Modal ─────────────────────────────────────────────────────────
 const GrievanceModal = ({ issue, onClose, onSave }) => {
+    const handlePick = (lat, lng) => {
+        setForm(f => ({
+            ...f, latitude: lat.toFixed(6), longitude:
+                lng.toFixed(6)
+        }));
+    };
     const [form, setForm] = useState(null);
     useEffect(() => { if (issue) setForm({ ...issue }); }, [issue]);
     if (!issue || !form) return null;
@@ -102,6 +119,32 @@ const GrievanceModal = ({ issue, onClose, onSave }) => {
                             </select>
                         </div>
                     </div>
+
+                    <div style={s.fieldGroup}>
+                        <label style={s.fieldLabel}>Pin Location — click on the map</label>
+                        <div style={{
+                            height: 200, borderRadius: 8, overflow: 'hidden',
+                            border: '1px solid #e2e8f0'
+                        }}>
+                            <MapContainer center={[18.5204, 73.8567]} zoom={12} style={{
+                                height: '100%', width: '100%'
+                            }}>
+                                <TileLayer
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="©OpenStreetMap" />
+                                <LocationPicker
+                                    position={form.latitude && form.longitude ?
+                                        [parseFloat(form.latitude), parseFloat(form.longitude)] : null}
+                                    onPick={handlePick}
+                                />
+                            </MapContainer>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+                            {form.latitude && form.longitude
+                                ? `📍 ${form.latitude}, ${form.longitude}`
+                                : 'Click the map to set the location'}
+                        </div>
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div style={s.fieldGroup}>
                             <label style={s.fieldLabel}>Status</label>
@@ -237,11 +280,19 @@ const GrievancePanel = () => {
     const [nextId, setNextId] = useState(100);
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/grievances')
-            .then(r => r.json())
-            .then(data => { setComplaints(data); setLoading(false); })
-            .catch(() => { setComplaints(MOCK_ISSUES); setLoading(false); });
-    }, []);
+        api.get('/api/grievances')
+            .then(res => {
+                const mapped = res.data.grievances.map(g => ({
+                    ...g,
+                    id: g._id,                              // component uses `id`
+                  created_at: g.createdAt,                // component uses `created_at`
+                  location: g.location || g.ward || 'Unknown', // guard against missing location
+              }));
+    setComplaints(mapped);
+    setLoading(false);
+})
+          .catch (() => { setComplaints(MOCK_ISSUES); setLoading(false); });
+  }, []);
 
     const filtered = complaints.filter(item => {
         const ms = statusFilter === 'All' || item.status === statusFilter;
@@ -251,21 +302,58 @@ const GrievancePanel = () => {
     });
 
     const handleSave = useCallback(async (data) => {
-        if (data.isNew || !data.id) {
-            const newIssue = { ...data, id: nextId, isNew: false, created_at: new Date().toISOString() };
-            setNextId(n => n + 1);
-            setComplaints(prev => [newIssue, ...prev]);
-        } else {
-            setComplaints(prev => prev.map(c => c.id === data.id ? { ...c, ...data } : c));
-            if (detailIssue?.id === data.id) setDetailIssue(d => ({ ...d, ...data }));
-        }
-        setSelectedGrievance(null);
-    }, [nextId, detailIssue]);
+        try {
+            // helper to reshape a saved grievance back into the UI's shape
+            const toUi = (g) => ({
+                ...g, id: g._id, created_at: g.createdAt,
+                location: g.location || g.ward || 'Unknown'
+            });
 
-    const handleStatusChange = useCallback((id, status) => {
-        setComplaints(prev => prev.map(c => c.id === id ? { ...c, status } : c));
-        setDetailIssue(d => d?.id === id ? { ...d, status } : d);
+            if (data.isNew || !data.id) {
+                // CREATE
+                const res = await api.post('/api/grievances', {
+                    title: data.title,
+                    location: data.location,
+                    priority: data.priority,
+                    status: data.status,
+                    description: data.desc,           // modal field is `desc`
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                });
+                setComplaints(prev => [toUi(res.data.grievance), ...prev]);
+            } else {
+                // UPDATE
+                const res = await api.put(`/api/grievances/${data.id}`, {
+                    title: data.title,
+                    location: data.location,
+                    priority: data.priority,
+                    status: data.status,
+                    description: data.desc,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                });
+                const updated = toUi(res.data.grievance);
+                setComplaints(prev => prev.map(c => c.id === data.id ? updated
+                    : c));
+                if (detailIssue?.id === data.id) setDetailIssue(updated);
+            }
+            setSelectedGrievance(null);
+        } catch (err) {
+            alert(err.response?.data?.message || "Could not save grievance");
+        }
+    }, [detailIssue]);
+
+    const handleStatusChange = useCallback(async (id, status) => {
+        try {
+            await api.put(`/api/grievances/${id}`, { status });
+            setComplaints(prev => prev.map(c => c.id === id ? { ...c, status }
+                : c));
+            setDetailIssue(d => d?.id === id ? { ...d, status } : d);
+        } catch (err) {
+            alert(err.response?.data?.message || "Could not update status");
+        }
     }, []);
+
 
     const handleCardClick = (item) => {
         setDetailIssue(item);

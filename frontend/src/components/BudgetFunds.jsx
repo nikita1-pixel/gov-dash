@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../api';
 import {
     Wallet, Landmark, ArrowUpRight, ArrowDownRight,
     BarChart3, PieChart, Plus, HardHat, FileText,
@@ -8,22 +9,79 @@ import {
 const BudgetFunds = () => {
     const [activeTab, setActiveTab] = useState('all'); // all, dpdc, mla, municipal
 
-    const projects = [
-        { id: 1, name: "Ghole Road Asphaltation", total: 4500000, released: 4000000, spent: 3000000, source: "DPDC", status: "In Progress", health: "Good" },
-        { id: 2, name: "Model Colony Garden CCTV", total: 1200000, released: 1200000, spent: 1200000, source: "MLA Fund", status: "Completed", health: "Stable" },
-        { id: 3, name: "Shivaji Nagar School Reno", total: 8500000, released: 3000000, spent: 2100000, source: "Municipal", status: "Delayed", health: "At Risk" },
-        { id: 4, name: "Ward 12 Street Light Phase II", total: 1800000, released: 1800000, spent: 400000, source: "DPDC", status: "Planning", health: "Good" },
-    ];
+    const [projects, setProjects] = useState([]);
+
+    useEffect(() => {
+        api.get('/api/projects')
+            .then(res => setProjects(res.data.projects))
+            .catch(err => console.error(err));
+    }, []);
+
+    // --- Live KPI totals computed from real projects ---
+    const totalSanctioned = projects.reduce((sum, p) => sum + (p.total || 0),
+        0);
+    const totalReleased = projects.reduce((sum, p) => sum + (p.released || 0),
+        0);
+    const totalSpent = projects.reduce((sum, p) => sum + (p.spent || 0), 0);
+    const atRiskCount = projects.filter(p => p.health === 'At Risk').length;
+
+    // format rupees into Crores (1 Cr = 1,00,00,000)
+    const toCr = (amount) => `₹${(amount / 10000000).toFixed(2)} Cr`;
+
+    // --- Executive action: Add a new sanctioned project ---
+    const handleAddSanction = async () => {
+        const name = window.prompt("Project name?");
+        if (!name) return;
+        const total = Number(window.prompt("Sanctioned amount in ₹ (e.g. 1500000) ? ", "1000000")) || 0;
+      const source = window.prompt("Fund source? (DPDC / MLA Fund / Municipal)", "DPDC") || "DPDC";
+        try {
+            const res = await api.post('/api/projects', {
+                name, total, source, released: 0, spent: 0, status:
+                    'Planning', health: 'Good',
+            });
+            setProjects(prev => [res.data.project, ...prev]); // show it instantly
+        } catch (err) {
+            alert(err.response?.data?.message || "Could not add sanction");
+        }
+    };
+
+    const handleDownloadReport = () => {
+        // 1. Column headers + one row per project (pulled from the data)
+        const headers = ['Project', 'Source', 'Status', 'Sanctioned',
+            'Released', 'Spent', 'Utilization %', 'Health'];
+        const rows = projects.map(p => [
+            p.name, p.source, p.status, p.total, p.released, p.spent,
+            Math.round((p.spent / p.total) * 100),
+            p.health,
+        ]);
+
+      // 2. Turn it into CSV text (wrap each cell in quotes so commas insideare safe)
+        const csv = [headers, ...rows]
+            .map(row => row.map(cell => `"${cell}"`).join(','))
+            .join('\n');
+
+      // 3. Wrap the text in a Blob (an in-memory file) and make a temporary URL for it
+      const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+
+      // 4. Create a hidden link pointing at that file, "click" it to trigger the download, then clean up
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `funds-report-${new Date().toISOString().slice(0,
+            10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url); // free the memory
+    };
 
     return (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '32px' }}>
 
             {/* 1. FINANCIAL KPI ROW */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-                <FinanceCard label="Total Sanctioned" value="₹16.00 Cr" sub="+12% from last FY" icon={Landmark} color="#3b82f6" />
-                <FinanceCard label="Total Released" value="₹10.00 Cr" sub="62.5% Liquidity" icon={Wallet} color="#10b981" />
-                <FinanceCard label="Total Expenditure" value="₹6.70 Cr" sub="Utilization Gap: 33%" icon={BarChart3} color="#f59e0b" />
-                <FinanceCard label="Pending Invoices" value="14" sub="₹1.2 Cr Awaiting Approval" icon={FileText} color="#ef4444" />
+                <FinanceCard label="Total Sanctioned" value={toCr(totalSanctioned)} sub={`${projects.length} projects`} icon={Landmark} color="#3b82f6" />
+                <FinanceCard label="Total Released" value={toCr(totalReleased)}  sub={`${totalSanctioned ? Math.round((totalReleased / totalSanctioned) * 100) : 0}% liquidity`} icon={Wallet} color="#10b981" />
+                <FinanceCard label="Total Expenditure" value={toCr(totalSpent)}  sub={`${totalReleased ? Math.round((totalSpent / totalReleased) * 100) :   0}% of released`} icon={BarChart3} color="#f59e0b" />
+                <FinanceCard label="At Risk Projects" value={atRiskCount} sub="Need attention" icon={FileText} color="#ef4444" />
             </div>
 
             {/* 2. PROJECT LEDGER & ANALYTICS */}
@@ -52,7 +110,7 @@ const BudgetFunds = () => {
                         </thead>
                         <tbody>
                             {projects.map(proj => (
-                                <tr key={proj.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                <tr key={proj._id} style={{ borderBottom: '1px solid #f8fafc' }}>
                                     <td style={tdStyle}>
                                         <div style={{ fontWeight: '700', color: '#1e293b' }}>{proj.name}</div>
                                         <div style={{ fontSize: '12px', color: '#94a3b8' }}>{proj.status}</div>
@@ -89,7 +147,8 @@ const BudgetFunds = () => {
                             <DistributionItem label="MLA Local Fund" percent={30} color="#10b981" />
                             <DistributionItem label="Municipal Corp" percent={25} color="#f59e0b" />
                         </div>
-                        <button style={{ width: '100%', marginTop: '32px', padding: '14px', borderRadius: '12px', border: '1px solid #334155', background: 'transparent', color: '#fff', fontWeight: '700', cursor: 'pointer' }}>
+                        <button onClick={handleDownloadReport}  
+                        style={{ width: '100%', marginTop: '32px', padding: '14px', borderRadius: '12px', border: '1px solid #334155', background: 'transparent', color: '#fff', fontWeight: '700', cursor: 'pointer' }}>
                             Generate Audit Report
                         </button>
                     </div>
@@ -97,7 +156,7 @@ const BudgetFunds = () => {
                     <div style={{ background: '#fff', borderRadius: '24px', border: '1px solid #e2e8f0', padding: '32px' }}>
                         <h4 style={{ margin: '0 0- 16px', fontSize: '16px', fontWeight: '800' }}>Quick Actions</h4>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <ActionBtn icon={Plus} label="Add Sanction" />
+                            <ActionBtn icon={Plus} label="Add Sanction" onClick={handleAddSanction} />
                             <ActionBtn icon={FileText} label="Log Expense" />
                             <ActionBtn icon={PieChart} label="Analytics" />
                             <ActionBtn icon={Search} label="Audit Log" />
@@ -136,10 +195,18 @@ const DistributionItem = ({ label, percent, color }) => (
     </div>
 );
 
-const ActionBtn = ({ icon: Icon, label }) => (
-    <button style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '16px', borderRadius: '16px', border: '1px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer', transition: '0.2s' }}>
+const ActionBtn = ({ icon: Icon, label, onClick }) => (
+    <button onClick={onClick} style={{
+        display: 'flex', flexDirection:
+            'column', alignItems: 'center', gap: '8px', padding: '16px', borderRadius:
+            '16px', border: '1px solid #f1f5f9', background: '#f8fafc', cursor:
+            'pointer', transition: '0.2s'
+    }}>
         <Icon size={20} color="#3b82f6" />
-        <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>{label}</span>
+        <span style={{
+            fontSize: '11px', fontWeight: '700', color:
+                '#64748b'
+        }}>{label}</span>
     </button>
 );
 

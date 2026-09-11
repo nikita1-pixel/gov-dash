@@ -1,3 +1,4 @@
+import api from '../api';
 import React, { useState } from 'react';
 import { ArrowLeft, Lock, User, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 // "admin@gmail.com" ==== Admin123
@@ -13,36 +14,20 @@ const Login = ({ role, onSuccess, onBack }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch('https://onrender.com/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: username, password: password }),
+            const response = await api.post('/api/auth/login', {
+                email: username,
+                password: password,
             });
-            // ... inside your fetch logic
-            const data = await response.json();
 
-            if (response.ok) {
-                // We need to go one level deeper into the 'user' object
-                const { token, user } = data;
+            const { token, user } = response.data;   // axios puts the JSON in .data
+localStorage.setItem('token', token);
+localStorage.setItem('role', user.role);
 
-                localStorage.setItem('token', token);
-                localStorage.setItem('role', user.role);
-
-                // Call onSuccess with the name and role from the nested user object
-                onSuccess({
-                    username: user.name,
-                    role: user.role
-                });
-
-                console.log("Login successful for role:", user.role);
-            } else {
-                alert(data.message || "Invalid Credentials");
-            }
-        // eslint-disable-next-line no-unused-vars
-        } catch (err) {
-            alert("Could not connect to the server.");
-        }
-    };
+onSuccess({ username: user.name, role: user.role });
+      } catch (err) {
+    alert(err.response?.data?.message || "Could not connect to the server.");
+      }
+  };
     return (
         <div className="login-overlay">
             <div className="login-modal">

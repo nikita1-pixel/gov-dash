@@ -92,16 +92,20 @@ function App() {
           <SidebarLink icon={Users} label="Citizen Grievances" active={view === 'grievances'} onClick={() => setView('grievances')} />
           <SidebarLink icon={Calendar} label="Grievance Analytics" active={view === 'analytics'} onClick={() => setView('analytics')} />
           <SidebarLink icon={Calendar} label="Daily Office" active={view === 'office'} onClick={() => setView('office')} />
-          <SidebarLink icon={Wallet} label="Budget & Funds" active={view === 'budget'} onClick={() => setView('budget')} />
+          {userRole === 'admin' && (
+          <SidebarLink icon={Wallet} label="Budget & Funds" active={view === 'budget'} onClick={() => setView('budget')}  />
+          )}
           <SidebarLink icon={Users} label="Citizen Feedback" active={view === 'feedback'} onClick={() => setView('feedback')} />
           <SidebarLink icon={Megaphone} label="Media & Image" active={view === 'media'} onClick={() => setView('media')} />
           {userRole === 'admin' && (
             <SidebarLink icon={UserPlus} label="Add User" active={view === 'add-user'} onClick={() => setView('add-user')} />
           )}
         </nav>
-
+        
         <div style={{ padding: '20px', borderTop: '1px solid #1e293b' }}>
+          {userRole === 'admin' && (
           <SidebarLink icon={ShieldAlert} label="Emergency Mode" active={view === 'emergency'} onClick={() => setView('emergency')} />
+             )}
           <button
             onClick={() => { localStorage.removeItem('token'); setUserRole(null); setView('home'); }}
             style={logoutBtn}
